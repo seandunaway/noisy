@@ -1,0 +1,70 @@
+<!doctype html>
+<style>
+body {margin: 0; height: 100vh;}
+canvas {width: 100%; height: 100%;}
+</style>
+<canvas></canvas>
+<script type="module">
+
+let canvas = document.querySelector('canvas')
+let c = canvas.getContext('2d')
+new ResizeObserver(function (entries) {
+    canvas.width = canvas.clientWidth // * devicePixelRatio
+    canvas.height = canvas.clientHeight // * devicePixelRatio
+}).observe(canvas)
+
+let response = await fetch('data.txt.gz')
+let gunzip = new DecompressionStream('gzip')
+let stream = response.body.pipeThrough(gunzip)
+let reader = stream.getReader()
+
+let data = []
+while (true) {
+    let {value, done} = await reader.read()
+    if (done) break
+    for (let item of value) {
+        data.push(item)
+    }
+}
+console.info('length', data.length)
+
+let i = 0
+let x = 0
+let y = 0
+let pixel_size = 50
+
+function frame() {
+    requestAnimationFrame(frame)
+    switch (data[i]) {
+        case 61: // =
+            c.fillStyle = 'white'
+            break
+        case 43: // +
+            c.fillStyle = 'green'
+            break
+        case 45: // -
+            c.fillStyle = 'red'
+            break
+        default: // eof
+            c.fillStyle = 'black'
+    }
+
+    if (x + pixel_size >= canvas.width) {
+        y += pixel_size
+        x = 0
+    }
+    if (y + pixel_size >= canvas.height) {
+        y = 0
+    }
+    if (i >= data.length) {
+        i = 0
+        console.info('eof')
+    }
+
+    c.fillRect(x, y, pixel_size, pixel_size)
+    x += pixel_size
+    i++
+}
+requestAnimationFrame(frame)
+
+</script>
