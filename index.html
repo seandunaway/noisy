@@ -8,63 +8,84 @@ canvas {width: 100%; height: 100%;}
 
 let canvas = document.querySelector('canvas')
 let c = canvas.getContext('2d')
-new ResizeObserver(function (entries) {
-    canvas.width = canvas.clientWidth // * devicePixelRatio
-    canvas.height = canvas.clientHeight // * devicePixelRatio
-}).observe(canvas)
+canvas.width = canvas.clientWidth // * devicePixelRatio
+canvas.height = canvas.clientHeight // * devicePixelRatio
 
 let response = await fetch('data.txt.gz')
 let gunzip = new DecompressionStream('gzip')
 let stream = response.body.pipeThrough(gunzip)
 let reader = stream.getReader()
+let reader_count = 0
 
-let data = []
+let FRAME_PIXELS = canvas.width * canvas.height
+let FRAME_ITEMS = FRAME_PIXELS * 4
+let frame_buffer = new Uint8ClampedArray(FRAME_ITEMS)
+let frame_buffer_index = 0
+
+let frames = []
+let frames_count = 0
+
 while (true) {
     let {value, done} = await reader.read()
     if (done) break
+
+    let rgba = [0, 0, 0, 255]
     for (let item of value) {
-        data.push(item)
+        reader_count++
+        switch (item) {
+            case 61: // =
+                rgba = [255, 255, 255, 255]
+                break
+            case 43: // +
+                rgba = [0, 255, 0, 255]
+                break
+            case 45: // -
+                rgba = [255, 0, 0, 255]
+                break
+            default: // eof
+        }
+        pixel_save(rgba)
     }
 }
-console.info('length', data.length)
+
+function pixel_save(rgba) {
+    if (frame_buffer_index >= FRAME_ITEMS) {
+        let frame = new ImageData(frame_buffer, canvas.width, canvas.height)
+
+        if (frames_count < 4) {
+            console.log('frame_buffer', frame_buffer)
+            console.log('ImageData', frame)
+        }
+
+        frames.push(frame)
+        frames_count++
+        frame_buffer_index = 0
+    }
+
+    frame_buffer[frame_buffer_index] = rgba[0]
+    frame_buffer_index++
+    frame_buffer[frame_buffer_index] = rgba[1]
+    frame_buffer_index++
+    frame_buffer[frame_buffer_index] = rgba[2]
+    frame_buffer_index++
+    frame_buffer[frame_buffer_index] = rgba[3]
+    frame_buffer_index++
+}
+
+console.info('reader count', reader_count)
+console.info(`frame pixels (${canvas.width}x${canvas.height})`, FRAME_PIXELS)
+console.info('frame buffer length', frame_buffer.length)
+console.info('frames (theoretical)', reader_count / FRAME_PIXELS)
+console.info('frames (actual)', frames.length)
 
 let i = 0
-let x = 0
-let y = 0
-let pixel_size = 50
+setInterval(async function () {
+    if (i >= frames.length) i = 0
 
-function frame() {
-    requestAnimationFrame(frame)
-    switch (data[i]) {
-        case 61: // =
-            c.fillStyle = 'white'
-            break
-        case 43: // +
-            c.fillStyle = 'green'
-            break
-        case 45: // -
-            c.fillStyle = 'red'
-            break
-        default: // eof
-            c.fillStyle = 'black'
-    }
+    console.info(`painting ${i} / ${frames.length}`)
+    c.putImageData(frames[i], 0, 0)
 
-    if (x + pixel_size >= canvas.width) {
-        y += pixel_size
-        x = 0
-    }
-    if (y + pixel_size >= canvas.height) {
-        y = 0
-    }
-    if (i >= data.length) {
-        i = 0
-        console.info('eof')
-    }
-
-    c.fillRect(x, y, pixel_size, pixel_size)
-    x += pixel_size
     i++
-}
-requestAnimationFrame(frame)
+}, 1000)
 
 </script>
