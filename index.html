@@ -18,7 +18,7 @@ let reader = stream.getReader()
 let reader_count = 0
 
 let FRAME_PIXELS = canvas.width * canvas.height
-let FRAME_ITEMS = FRAME_PIXELS * 4
+let FRAME_ITEMS = FRAME_PIXELS * 4 // rgba
 let frame_buffer = new Uint8ClampedArray(FRAME_ITEMS)
 let frame_buffer_index = 0
 
@@ -26,13 +26,13 @@ let frames = []
 let frames_count = 0
 
 while (true) {
-    let {value, done} = await reader.read()
+    let {value: chunk, done} = await reader.read()
     if (done) break
 
-    let rgba = [0, 0, 0, 255]
-    for (let item of value) {
+    for (let char of chunk) {
         reader_count++
-        switch (item) {
+        let rgba
+        switch (char) {
             case 61: // =
                 rgba = [255, 255, 255, 255]
                 break
@@ -43,6 +43,7 @@ while (true) {
                 rgba = [255, 0, 0, 255]
                 break
             default: // eof
+                rgba = [0, 0, 0, 255]
         }
         pixel_save(rgba)
     }
@@ -52,10 +53,8 @@ function pixel_save(rgba) {
     if (frame_buffer_index >= FRAME_ITEMS) {
         let frame = new ImageData(frame_buffer, canvas.width, canvas.height)
 
-        if (frames_count < 4) {
-            console.log('frame_buffer', frame_buffer)
-            console.log('ImageData', frame)
-        }
+        console.log(frame_buffer)
+        console.log(frame)
 
         frames.push(frame)
         frames_count++
@@ -79,13 +78,14 @@ console.info('frames (theoretical)', reader_count / FRAME_PIXELS)
 console.info('frames (actual)', frames.length)
 
 let i = 0
-setInterval(async function () {
+let delay = 1000
+setInterval(function () {
     if (i >= frames.length) i = 0
 
     console.info(`painting ${i} / ${frames.length}`)
     c.putImageData(frames[i], 0, 0)
 
     i++
-}, 1000)
+}, delay)
 
 </script>
