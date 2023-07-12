@@ -17,13 +17,11 @@ let stream = response.body.pipeThrough(gunzip)
 let reader = stream.getReader()
 let reader_count = 0
 
-let FRAME_PIXELS = canvas.width * canvas.height
-let FRAME_ITEMS = FRAME_PIXELS * 4 // rgba
-let frame_buffer = new Uint8ClampedArray(FRAME_ITEMS)
-let frame_buffer_index = 0
-
-let frames = []
-let frames_count = 0
+let data = []
+let data_i = 0
+let pixels = canvas.clientWidth * canvas.clientHeight
+let pixels_rgba = pixels * 4
+let pixels_i = 0
 
 while (true) {
     let {value: chunk, done} = await reader.read()
@@ -50,42 +48,41 @@ while (true) {
 }
 
 function pixel_save(rgba) {
-    if (frame_buffer_index >= FRAME_ITEMS) {
-        let frame = new ImageData(frame_buffer, canvas.width, canvas.height)
-
-        console.log(frame_buffer)
-        console.log(frame)
-
-        frames.push(frame)
-        frames_count++
-        frame_buffer_index = 0
+    if (pixels_i === 0) {
+        data[data_i] = new Uint8ClampedArray(pixels_rgba)
     }
 
-    frame_buffer[frame_buffer_index] = rgba[0]
-    frame_buffer_index++
-    frame_buffer[frame_buffer_index] = rgba[1]
-    frame_buffer_index++
-    frame_buffer[frame_buffer_index] = rgba[2]
-    frame_buffer_index++
-    frame_buffer[frame_buffer_index] = rgba[3]
-    frame_buffer_index++
+    data[data_i][pixels_i] = rgba[0]
+    pixels_i++
+    data[data_i][pixels_i] = rgba[1]
+    pixels_i++
+    data[data_i][pixels_i] = rgba[2]
+    pixels_i++
+    data[data_i][pixels_i] = rgba[3]
+    pixels_i++
+
+    if (pixels_i >= pixels_rgba) {
+        data_i++
+        pixels_i = 0
+    }
 }
 
-console.info('reader count', reader_count)
-console.info(`frame pixels (${canvas.width}x${canvas.height})`, FRAME_PIXELS)
-console.info('frame buffer length', frame_buffer.length)
-console.info('frames (theoretical)', reader_count / FRAME_PIXELS)
-console.info('frames (actual)', frames.length)
+console.info('reader_count', reader_count)
+console.info('resolution', canvas.clientWidth, 'x', canvas.clientHeight)
+console.info('pixels', pixels)
+console.info('pixels_rgba', pixels_rgba)
+console.info('data.length (calculated)', reader_count / pixels)
+console.info('data.length (actual)', data.length)
 
-let i = 0
-let delay = 1000
+let paint_i = 0
 setInterval(function () {
-    if (i >= frames.length) i = 0
-
-    console.info(`painting ${i} / ${frames.length}`)
-    c.putImageData(frames[i], 0, 0)
-
-    i++
-}, delay)
+    let imagedata = new ImageData(data[paint_i], canvas.width, canvas.height)
+    c.putImageData(imagedata, 0, 0)
+    paint_i++
+    if (paint_i >= data.length) {
+        console.info('done')
+        paint_i = 0
+    }
+}, 100)
 
 </script>
