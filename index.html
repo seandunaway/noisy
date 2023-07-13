@@ -32,16 +32,16 @@ while (true) {
         let rgba
         switch (char) {
             case 61: // =
-                rgba = [255, 255, 255, 255]
+                continue
                 break
             case 43: // +
-                rgba = [0, 255, 0, 255]
+                rgba = [0, 0, 0, 255]
                 break
             case 45: // -
-                rgba = [255, 0, 0, 255]
+                rgba = [255, 255, 255, 255]
                 break
             default: // eof
-                rgba = [0, 0, 0, 255]
+                rgba = [255, 0, 0, 255]
         }
         pixel_save(rgba)
     }
